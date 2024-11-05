@@ -63,7 +63,7 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dacrab/thorium-upda
 - 💾 At least 10GB free disk space
 - 🔨 Required build dependencies:
   - base-devel
-  - gitgith
+  - git
   - python
   - ninja
   - curl
@@ -73,6 +73,8 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dacrab/thorium-upda
   - libxrandr
   - And other dependencies (automatically installed)
 
+> 💡 The installer automatically checks for existing dependencies and only installs missing ones to save time and bandwidth.
+
 ## 📝 Notes
 
 - 🔄 Automatic CPU architecture detection for optimal performance
@@ -80,6 +82,7 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dacrab/thorium-upda
 - 🛑 Safe process handling during updates
 - 🧹 Automatic cleanup of temporary files
 - 🏗️ Source compilation optimized for your CPU architecture (Arch Linux)
+- ⚡ Efficient dependency management - skips already installed packages
 
 ## 💬 Support
 
