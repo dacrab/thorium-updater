@@ -63,7 +63,7 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dacrab/thorium-upda
 - 💾 At least 10GB free disk space
 - 🔨 Required build dependencies:
   - base-devel
-  - git
+  - gitgith
   - python
   - ninja
   - curl
