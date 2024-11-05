@@ -15,18 +15,18 @@ Easy installation scripts for the blazing-fast [Thorium Browser](https://thorium
 
 ### 🪟 Windows
 ```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; irm https://raw.githubusercontent.com/YOUR_USERNAME/thorium-installer/main/install-thorium.ps1 | iex
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; irm https://raw.githubusercontent.com/dacrab/thorium-updater/main/install-thorium.ps1 | iex
 ```
 
 ### 🐧 Linux
 #### Debian/Ubuntu/Fedora/RHEL (Binary Installation)
 ```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/thorium-installer/main/install-thorium.sh)"
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dacrab/thorium-updater/main/install-thorium.sh)"
 ```
 
 #### Arch Linux and Derivatives (Build from Source)
 ```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/thorium-installer/main/install-thorium.sh)"
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dacrab/thorium-updater/main/install-thorium.sh)"
 ```
 ⚠️ Note: Arch Linux installation builds from source and may take 30+ minutes depending on your system.
 
@@ -85,7 +85,7 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/thori
 
 <div align="center">
 
-[![Issues](https://img.shields.io/badge/Issues-Report_Here-red.svg)](https://github.com/YOUR_USERNAME/thorium-installer/issues)
+[![Issues](https://img.shields.io/badge/Issues-Report_Here-red.svg)](https://github.com/dacrab/thorium-updater/issues)
 [![Thorium](https://img.shields.io/badge/Thorium-Official_Repo-orange.svg)](https://github.com/Alex313031/thorium)
 
 **Installation Issues?** Open an issue in this repository  
