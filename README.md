@@ -15,7 +15,7 @@ Easy installation scripts for the blazing-fast [Thorium Browser](https://thorium
 
 ### 🪟 Windows
 ```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; irm https://raw.githubusercontent.com/dacrab/thorium-updater/main/install-thorium.ps1 | iex
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/dacrab/thorium-updater/main/install-thorium.ps1" -OutFile "$env:TEMP\install-thorium.ps1"; & "$env:TEMP\install-thorium.ps1"
 ```
 
 ### 🐧 Linux
