@@ -1,23 +1,16 @@
-#Requires -RunAsAdministrator
-
-<#
-.SYNOPSIS
-    Installer/Updater script for Thorium Browser on Windows
-.DESCRIPTION
-    Automatically installs or updates Thorium Browser based on CPU architecture.
-    Handles elevation, installation detection, version comparison, and cleanup.
-.NOTES
-    Requires administrative privileges
-    Supports AVX2, SSE4, and SSE3 CPU architectures
-#>
-
 # Self-elevate if not running as administrator
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "Requesting administrative privileges..." -ForegroundColor Yellow
-    $CommandLine = "-File `"" + $MyInvocation.MyCommand.Path + "`" " + $MyInvocation.UnboundArguments
+    $CommandLine = "-NoExit -ExecutionPolicy Bypass -File `"" + $MyInvocation.MyCommand.Path + "`" " + $MyInvocation.UnboundArguments
     Start-Process -FilePath PowerShell.exe -Verb RunAs -ArgumentList $CommandLine
     exit
 }
+
+#region Configuration
+$ErrorActionPreference = "Stop"
+$tempDir = Join-Path $env:TEMP "ThoriumDownload"
+$maxRetries = 3
+$releaseUrl = "https://api.github.com/repos/Alex313031/Thorium-Win/releases"
 
 #region Installation Detection Functions
 
@@ -136,27 +129,6 @@ function Get-InstalledThorium {
     return $null
 }
 
-#region Uninstallation Functions
-
-<#
-.SYNOPSIS
-    Removes existing Thorium Browser installation
-.DESCRIPTION
-    Uses Windows Installer to remove any existing Thorium Browser installations
-#>
-function Uninstall-Thorium {
-    Write-Host "Removing old Thorium installation..." -ForegroundColor Cyan
-    
-    $thoriumApps = Get-CimInstance -ClassName Win32_Product | Where-Object { $_.Name -like "*Thorium*" }
-    
-    if ($thoriumApps) {
-        foreach ($app in $thoriumApps) {
-            Write-Host "Uninstalling $($app.Name)..." -ForegroundColor Yellow
-            $null = $app | Invoke-CimMethod -MethodName Uninstall
-        }
-    }
-}
-
 #region Version Management Functions
 
 <#
@@ -168,9 +140,7 @@ function Uninstall-Thorium {
     Array of PSCustomObjects containing Version, Date, and Assets
 #>
 function Get-ThoriumVersions {
-    $maxRetries = 3
     $retryCount = 0
-    $releaseUrl = "https://api.github.com/repos/Alex313031/Thorium-Win/releases"
     
     while ($retryCount -lt $maxRetries) {
         try {
@@ -189,6 +159,32 @@ function Get-ThoriumVersions {
             }
             Start-Sleep -Seconds 2
         }
+    }
+}
+
+<#
+.SYNOPSIS
+    Compares Thorium Browser versions
+.PARAMETER CurrentVersion
+    Currently installed version string
+.PARAMETER LatestVersion
+    Latest available version string
+.OUTPUTS
+    Boolean indicating if versions match
+#>
+function Compare-ThoriumVersions {
+    param (
+        [string]$CurrentVersion,
+        [string]$LatestVersion
+    )
+    
+    $currentClean = $CurrentVersion -replace '^M' -replace '[^0-9.]'
+    $latestClean = $LatestVersion -replace '^M' -replace '[^0-9.]'
+    
+    try {
+        return [version]$currentClean -eq [version]$latestClean
+    } catch {
+        return $CurrentVersion -eq $LatestVersion
     }
 }
 
@@ -309,29 +305,24 @@ function Close-Thorium {
     }
 }
 
+#region Installation Functions
+
 <#
 .SYNOPSIS
-    Compares Thorium Browser versions
-.PARAMETER CurrentVersion
-    Currently installed version string
-.PARAMETER LatestVersion
-    Latest available version string
-.OUTPUTS
-    Boolean indicating if versions match
+    Removes existing Thorium Browser installation
+.DESCRIPTION
+    Uses Windows Installer to remove any existing Thorium Browser installations
 #>
-function Compare-ThoriumVersions {
-    param (
-        [string]$CurrentVersion,
-        [string]$LatestVersion
-    )
+function Uninstall-Thorium {
+    Write-Host "Removing old Thorium installation..." -ForegroundColor Cyan
     
-    $currentClean = $CurrentVersion -replace '^M' -replace '[^0-9.]'
-    $latestClean = $LatestVersion -replace '^M' -replace '[^0-9.]'
+    $thoriumApps = Get-CimInstance -ClassName Win32_Product | Where-Object { $_.Name -like "*Thorium*" }
     
-    try {
-        return [version]$currentClean -eq [version]$latestClean
-    } catch {
-        return $CurrentVersion -eq $LatestVersion
+    if ($thoriumApps) {
+        foreach ($app in $thoriumApps) {
+            Write-Host "Uninstalling $($app.Name)..." -ForegroundColor Yellow
+            $null = $app | Invoke-CimMethod -MethodName Uninstall
+        }
     }
 }
 
@@ -339,8 +330,6 @@ function Compare-ThoriumVersions {
 
 # Main script
 try {
-    $ErrorActionPreference = "Stop"
-    $tempDir = Join-Path $env:TEMP "ThoriumDownload"
     New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
 
     Write-Host "=== Thorium Browser Installer/Updater ===" -ForegroundColor Cyan
@@ -406,4 +395,6 @@ try {
     if (Test-Path $tempDir) {
         Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
     }
+    Write-Host "`nPress any key to exit..." -ForegroundColor Yellow
+    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 }
