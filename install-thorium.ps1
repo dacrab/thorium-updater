@@ -1,4 +1,9 @@
 # Thorium Browser Updater
+#
+# Script to automatically update Thorium Browser installations
+# Requires admin privileges and handles multiple installation types
+
+#region Setup
 
 # Auto-elevate if not running as admin
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -13,12 +18,14 @@ $ProgressPreference = "SilentlyContinue"
 $tempDir = "$env:TEMP\ThoriumUpdater"
 $releaseApi = "https://api.github.com/repos/Alex313031/Thorium-Win/releases"
 
-# Helper functions for consistent output
+#region Helper Functions
 function Write-Section($text) { Write-Host "`n=== $text ===" -ForegroundColor Cyan }
 function Write-Status($text) { Write-Host $text -ForegroundColor Yellow }
 function Write-Success($text) { Write-Host $text -ForegroundColor Green }
 function Write-Error($text) { Write-Host $text -ForegroundColor Red }
+#endregion
 
+#region Search Paths
 # Registry search paths
 $THORIUM_REG_PATHS = @(
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\thorium.exe",
@@ -46,6 +53,11 @@ $THORIUM_SEARCH_ROOTS = @(
     $env:LocalAppData,
     "$env:LocalAppData\Programs"
 )
+#endregion
+
+#endregion
+
+#region Installation Detection Functions
 
 function Get-ThoriumFromRegistry {
     foreach ($regPath in $THORIUM_REG_PATHS) {
@@ -142,6 +154,10 @@ function Get-ThoriumInstall {
     }
 }
 
+#endregion
+
+#region Update Functions
+
 function Get-LatestVersion {
     try {
         $releases = Invoke-RestMethod -Uri $releaseApi
@@ -193,7 +209,10 @@ function Compare-ThoriumVersions {
     }
 }
 
-# Main execution
+#endregion
+
+#region Main Execution
+
 try {
     Write-Section "Thorium Browser Updater"
     
@@ -234,3 +253,5 @@ finally {
     Write-Host "`nPress any key to exit..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
+
+#endregion

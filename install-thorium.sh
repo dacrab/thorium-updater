@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# Colors for terminal output
+#region Terminal Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+#endregion
 
-# Error handling setup
+#region Error Handling
 set -euo pipefail
 
-# Error handler function
 error_handler() {
     local exit_code=$1
     local line_no=$2
@@ -30,15 +30,13 @@ error_handler() {
     exit "$exit_code"
 }
 
-# Set up error and interrupt handlers
 trap 'error_handler $? $LINENO "$BASH_LINENO" "$BASH_COMMAND" "$(printf "::%s" "${FUNCNAME[@]:-}")";' ERR
 trap 'echo -e "\n${YELLOW}Script interrupted by user. Press any key to exit...${NC}" >&2; read -n 1 -s -r; exit 1' SIGINT SIGTERM
+#endregion
 
-# Utility functions
+#region Utility Functions
 cleanup() {
-    if [[ -d "/tmp/thorium-install" ]]; then
-        rm -rf "/tmp/thorium-install" || true
-    fi
+    [[ -d "/tmp/thorium-install" ]] && rm -rf "/tmp/thorium-install" || true
 }
 
 close_thorium() {
@@ -54,7 +52,7 @@ close_thorium() {
     while pgrep -f "thorium" > /dev/null && [ $count -lt $max_wait ]; do
         echo "Waiting for Thorium to close... ($count/$max_wait)"
         sleep 1
-        count=$((count + 1))
+        ((count++))
     done
     
     # Force kill if still running
@@ -65,16 +63,15 @@ close_thorium() {
         sleep 2
     fi
 }
+#endregion
 
-# System detection functions
+#region System Detection Functions
 check_requirements() {
     local required_commands=("curl" "grep" "pkill")
     local missing_commands=()
     
     for cmd in "${required_commands[@]}"; do
-        if ! command -v "$cmd" &> /dev/null; then
-            missing_commands+=("$cmd")
-        fi
+        command -v "$cmd" &> /dev/null || missing_commands+=("$cmd")
     done
     
     if [ ${#missing_commands[@]} -gt 0 ]; then
@@ -119,8 +116,9 @@ detect_package_manager() {
         exit 1
     fi
 }
+#endregion
 
-# Version management functions
+#region Version Management Functions
 get_installed_version() {
     if ! command -v thorium-browser &> /dev/null; then
         echo ""
@@ -150,7 +148,7 @@ get_latest_version() {
             return 0
         fi
         
-        retry_count=$((retry_count + 1))
+        ((retry_count++))
         echo -e "${YELLOW}Retry $retry_count of $max_retries: Failed to fetch latest version${NC}" >&2
         sleep 2
     done
@@ -167,13 +165,11 @@ compare_versions() {
     current=$(echo "$current" | sed 's/^M//' | grep -oP '[0-9.]+' || true)
     latest=$(echo "$latest" | sed 's/^M//' | grep -oP '[0-9.]+' || true)
     
-    if [ "$current" = "$latest" ]; then
-        return 0
-    fi
-    return 1
+    [ "$current" = "$latest" ]
 }
+#endregion
 
-# Installation function
+#region Installation Functions
 install_thorium() {
     local arch=$1
     local pkg_type=$2
@@ -189,82 +185,12 @@ install_thorium() {
     
     case "$pkg_type" in
         "pkg")
-            echo -e "${YELLOW}Note: Building from source on Arch Linux may take 30+ minutes depending on your system${NC}"
-            echo -e "${YELLOW}Note: You'll need at least 10GB of free disk space for the build process${NC}"
-            
-            # Install build dependencies
-            echo -e "${CYAN}Installing build dependencies...${NC}"
-            if ! sudo pacman -Sy --needed --noconfirm base-devel git python ninja curl nss libxss gtk3 libxrandr \
-                cups dbus libgnome-keyring alsa-lib xdg-utils libcups libdrm snappy jsoncpp \
-                fontconfig libxml2 libxslt minizip nspr nss re2 speech-dispatcher pciutils \
-                libpulse; then
-                echo -e "${RED}Error: Failed to install build dependencies${NC}" >&2
-                exit 1
-            fi
-
-            # Download and extract source
-            local source_url="https://github.com/Alex313031/Thorium/archive/refs/tags/M${version}.tar.gz"
-            echo -e "${CYAN}Downloading source code...${NC}"
-            if ! curl -L --retry 3 --retry-delay 2 -o "thorium-source.tar.gz" "$source_url"; then
-                echo -e "${RED}Error: Failed to download source code${NC}" >&2
-                exit 1
-            fi
-
-            tar xf thorium-source.tar.gz
-            cd "Thorium-M${version}/build" || exit 1
-
-            # Configure build based on CPU architecture
-            echo -e "${CYAN}Configuring build for ${arch}...${NC}"
-            local build_args=()
-            case "$arch" in
-                "AVX2") build_args+=("--enable-avx2") ;;
-                "AVX")  build_args+=("--enable-avx") ;;
-                "SSE4") build_args+=("--enable-sse4") ;;
-                "SSE3") build_args+=("--enable-sse3") ;;
-            esac
-
-            if ! ../configure.sh "${build_args[@]}"; then
-                echo -e "${RED}Error: Build configuration failed${NC}" >&2
-                exit 1
-            fi
-
-            echo -e "${CYAN}Building Thorium (this will take a while)...${NC}"
-            if ! ninja -C out/Release thorium; then
-                echo -e "${RED}Error: Build failed${NC}" >&2
-                exit 1
-            fi
-
-            # Install built binary
-            echo -e "${CYAN}Installing Thorium...${NC}"
-            sudo rm -rf /opt/thorium || true
-            sudo mkdir -p /opt/thorium
-            sudo cp -r out/Release/* /opt/thorium/
-            sudo ln -sf /opt/thorium/thorium-browser /usr/bin/thorium-browser
-
-            # Create desktop entry
-            cat << EOF | sudo tee /usr/share/applications/thorium-browser.desktop
-[Desktop Entry]
-Version=1.0
-Name=Thorium Browser
-Comment=Browse the World Wide Web
-GenericName=Web Browser
-Keywords=Internet;WWW;Browser;Web;Explorer
-Exec=/usr/bin/thorium-browser %U
-Terminal=false
-X-MultipleArgs=false
-Type=Application
-Icon=/opt/thorium/product_logo_256.png
-Categories=Network;WebBrowser;
-MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
-StartupNotify=true
-EOF
+            install_arch "$arch" "$version"
             ;;
-            
         "deb")
             echo "Debian/Ubuntu installation not implemented yet"
             exit 1
             ;;
-            
         "rpm")
             echo "RPM installation not implemented yet"
             exit 1
@@ -282,7 +208,89 @@ EOF
     cleanup
 }
 
-# Main execution
+install_arch() {
+    local arch=$1
+    local version=$2
+    
+    echo -e "${YELLOW}Note: Building from source on Arch Linux may take 30+ minutes depending on your system${NC}"
+    echo -e "${YELLOW}Note: You'll need at least 10GB of free disk space for the build process${NC}"
+    
+    # Install build dependencies
+    echo -e "${CYAN}Installing build dependencies...${NC}"
+    if ! sudo pacman -Sy --needed --noconfirm base-devel git python ninja curl nss libxss gtk3 libxrandr \
+        cups dbus libgnome-keyring alsa-lib xdg-utils libcups libdrm snappy jsoncpp \
+        fontconfig libxml2 libxslt minizip nspr nss re2 speech-dispatcher pciutils \
+        libpulse; then
+        echo -e "${RED}Error: Failed to install build dependencies${NC}" >&2
+        exit 1
+    fi
+
+    # Download and extract source
+    local source_url="https://github.com/Alex313031/Thorium/archive/refs/tags/M${version}.tar.gz"
+    echo -e "${CYAN}Downloading source code...${NC}"
+    if ! curl -L --retry 3 --retry-delay 2 -o "thorium-source.tar.gz" "$source_url"; then
+        echo -e "${RED}Error: Failed to download source code${NC}" >&2
+        exit 1
+    fi
+
+    tar xf thorium-source.tar.gz
+    cd "Thorium-M${version}/build" || exit 1
+
+    # Configure build based on CPU architecture
+    echo -e "${CYAN}Configuring build for ${arch}...${NC}"
+    local build_args=()
+    case "$arch" in
+        "AVX2") build_args+=("--enable-avx2") ;;
+        "AVX")  build_args+=("--enable-avx") ;;
+        "SSE4") build_args+=("--enable-sse4") ;;
+        "SSE3") build_args+=("--enable-sse3") ;;
+    esac
+
+    if ! ../configure.sh "${build_args[@]}"; then
+        echo -e "${RED}Error: Build configuration failed${NC}" >&2
+        exit 1
+    fi
+
+    echo -e "${CYAN}Building Thorium (this will take a while)...${NC}"
+    if ! ninja -C out/Release thorium; then
+        echo -e "${RED}Error: Build failed${NC}" >&2
+        exit 1
+    fi
+
+    install_thorium_files
+}
+
+install_thorium_files() {
+    echo -e "${CYAN}Installing Thorium...${NC}"
+    sudo rm -rf /opt/thorium || true
+    sudo mkdir -p /opt/thorium
+    sudo cp -r out/Release/* /opt/thorium/
+    sudo ln -sf /opt/thorium/thorium-browser /usr/bin/thorium-browser
+
+    create_desktop_entry
+}
+
+create_desktop_entry() {
+    cat << EOF | sudo tee /usr/share/applications/thorium-browser.desktop
+[Desktop Entry]
+Version=1.0
+Name=Thorium Browser
+Comment=Browse the World Wide Web
+GenericName=Web Browser
+Keywords=Internet;WWW;Browser;Web;Explorer
+Exec=/usr/bin/thorium-browser %U
+Terminal=false
+X-MultipleArgs=false
+Type=Application
+Icon=/opt/thorium/product_logo_256.png
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+StartupNotify=true
+EOF
+}
+#endregion
+
+#region Main Function
 main() {
     echo -e "${CYAN}=== Thorium Browser Installer/Updater ===${NC}"
     echo "----------------------------------------"
@@ -300,30 +308,9 @@ main() {
     LATEST_VERSION=$(get_latest_version)
     
     if [ -n "$CURRENT_VERSION" ]; then
-        echo -e "\n${CYAN}Current Thorium Installation:${NC}"
-        echo "Version: $CURRENT_VERSION"
-        
-        if compare_versions "$CURRENT_VERSION" "$LATEST_VERSION"; then
-            echo -e "\n${GREEN}You are already running the latest version of Thorium!${NC}"
-            echo -e "${GREEN}Version: $CURRENT_VERSION${NC}"
-            exit 0
-        fi
-        
-        echo -e "\n${YELLOW}New version available: $LATEST_VERSION${NC}"
-        read -rp "Would you like to update? (Y/n) " response
-        if [[ "$response" =~ ^[Nn]$ ]]; then
-            exit 0
-        fi
-        
-        close_thorium
+        handle_update "$CURRENT_VERSION" "$LATEST_VERSION"
     else
-        echo -e "\n${CYAN}Installing Thorium Browser...${NC}"
-        echo -e "Detected CPU Architecture: ${GREEN}$CPU_ARCH${NC}"
-        echo -e "Installing version: ${GREEN}$LATEST_VERSION${NC}"
-        read -rp "Would you like to proceed with installation? (Y/n) " response
-        if [[ "$response" =~ ^[Nn]$ ]]; then
-            exit 0
-        fi
+        handle_install "$LATEST_VERSION"
     fi
     
     install_thorium "$CPU_ARCH" "$PKG_TYPE" "$LATEST_VERSION"
@@ -331,6 +318,37 @@ main() {
     echo -e "\n${GREEN}Installation/Update complete!${NC}"
     echo "----------------------------------------"
 }
+
+handle_update() {
+    local current_version=$1
+    local latest_version=$2
+    
+    echo -e "\n${CYAN}Current Thorium Installation:${NC}"
+    echo "Version: $current_version"
+    
+    if compare_versions "$current_version" "$latest_version"; then
+        echo -e "\n${GREEN}You are already running the latest version of Thorium!${NC}"
+        echo -e "${GREEN}Version: $current_version${NC}"
+        exit 0
+    fi
+    
+    echo -e "\n${YELLOW}New version available: $latest_version${NC}"
+    read -rp "Would you like to update? (Y/n) " response
+    [[ "$response" =~ ^[Nn]$ ]] && exit 0
+    
+    close_thorium
+}
+
+handle_install() {
+    local latest_version=$1
+    
+    echo -e "\n${CYAN}Installing Thorium Browser...${NC}"
+    echo -e "Detected CPU Architecture: ${GREEN}$CPU_ARCH${NC}"
+    echo -e "Installing version: ${GREEN}$latest_version${NC}"
+    read -rp "Would you like to proceed with installation? (Y/n) " response
+    [[ "$response" =~ ^[Nn]$ ]] && exit 0
+}
+#endregion
 
 # Run main function
 main "$@"
